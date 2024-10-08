@@ -142,24 +142,20 @@ wrangleData_Carcass <- function(path_carcass, data_carcass_name){
   
   ## Recode column content & drop comments
   data_carcass <- data_carcass %>%
-    # Sex
+    
+    # Code sex and death cause
     dplyr::mutate(Sex = dplyr::case_when(Sex == 1 ~ "male",
                                          Sex == 2 ~ "female",
-                                         is.na(Sex) ~ NA)) %>%
-    
-    # TODO: Causes of death
-    # 0 = ? (pre 2004)
-    # 1 = ? (majority of entries, likely harvest and den hunts)
-    # 2 = road/railkill
-    # 3 = leg-hold trap  
-    # 4 = poaching
-    # 5 = not used
-    # 6 = not used
-    # 7 = found dead
-    # 8 = ? (seems to be mixture of things)
-    # 9 = found dead
-    # 10 = found dead
-    
+                                         is.na(Sex) ~ NA),
+                  DeathCause = dplyr::case_when(DeathCause == 0 ~ "unknown",
+                                                DeathCause == 1 ~ "harvest",
+                                                DeathCause == 3 ~ "drowned",
+                                                DeathCause == 4 ~ "poaching",
+                                                DeathCause == 7 ~ "natural",
+                                                DeathCause %in% c(8, 9, 10) ~ "other",
+                                                TRUE ~ NA)
+                  ) %>%
+
     # Drop comments columns
     dplyr::select(-Comments_Rep1, -Comments_Rep2, -Comments_Rep3,
                   -Comments_Rep4, -Comments_Rep5, -Comments_Rep6,
