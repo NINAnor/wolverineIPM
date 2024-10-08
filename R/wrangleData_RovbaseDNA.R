@@ -29,7 +29,7 @@ wrangleData_RovbaseDNA <- function(path_rovbase, data_CR_name,
                                    dir_shapefile){
   
   ## Read in DNA CR data and select/rename relevant columns
-  data_CR <- readxl::read_xlsx(paste0(path_rovbase, data_CR_name)) %>%
+  data_CR <- suppressWarnings(readxl::read_xlsx(paste0(path_rovbase, data_CR_name))) %>%
     
     # Select relevant columns
     dplyr::select(`DNAID (Prøve)`,
@@ -69,7 +69,7 @@ wrangleData_RovbaseDNA <- function(path_rovbase, data_CR_name,
   
   ## Remove blacklisted entries
   blacklist_count <- length(which(data_CR$DNAID_Analysis %in% blacklist_CR$DNAID_RB))
-  message(paste0("Removed ", blacklist_count, " entries from CR data that have DNA ID's on the blacklist."))
+  message(paste0("Removed ", blacklist_count, " entries from CR data that have DNA IDs on the blacklist."))
   
   data_CR <- data_CR %>%
     dplyr::filter(!(DNAID_Analysis %in% blacklist_CR$DNAID_RB))
@@ -137,11 +137,14 @@ wrangleData_RovbaseDNA <- function(path_rovbase, data_CR_name,
   message(paste0("Region for ", overwrite_count, " entries overwritten based on County and Municipality."))
   
   
-  ## Split dead/alive status from individual ID
+  ## Split dead/alive status from individual ID & recode sex
   data_CR <- data_CR %>%
     dplyr::mutate(DeadRecovery = ifelse(grepl("[^A-Za-z0-9 ]", IndID), "yes", "no"),
                   IndID = stringr::str_trim(stringr::str_remove_all(IndID, pattern = "[^A-Za-z0-9 ]")),
-                  DeadAlive = ifelse(substr(RovbaseID_Sample, start = 1, stop = 1) == "M", "dead", "alive"))
+                  DeadAlive = ifelse(substr(RovbaseID_Sample, start = 1, stop = 1) == "M", "dead", "alive"),
+                  Sex = dplyr::case_when(Sex == "Hann" ~ "male",
+                                         Sex == "Hunn" ~ "female",
+                                         Sex == "Ukjent" | is.na(Sex) ~ NA))
   
   ## Return data
   return(data_CR)

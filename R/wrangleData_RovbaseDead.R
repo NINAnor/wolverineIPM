@@ -29,7 +29,7 @@ wrangleData_RovbaseDead <- function(path_rovbase, data_dead_name,
                                     dir_shapefile){
   
   ## Read in DNA CR data and select/rename relevant columns
-  data_dead <- readxl::read_xlsx(paste0(path_rovbase, data_dead_name)) %>%
+  data_dead <- suppressWarnings(readxl::read_xlsx(paste0(path_rovbase, data_dead_name))) %>%
     
     # Select relevant columns
     dplyr::select(`RovbaseID`,
@@ -71,7 +71,7 @@ wrangleData_RovbaseDead <- function(path_rovbase, data_dead_name,
   
   ## Remove blacklisted entries
   blacklist_count <- length(which(data_dead$RovbaseID_Analysis %in% blacklist_dead$Rovbase_ID))
-  message(paste0("Removed ", blacklist_count, " entries from dead recover data that have Rovbase ID's on the blacklist."))
+  message(paste0("Removed ", blacklist_count, " entries from dead recover data that have Rovbase IDs on the blacklist."))
   
   data_dead <- data_dead %>%
     dplyr::filter(!(RovbaseID_Analysis %in% blacklist_dead$Rovbase_ID))
@@ -187,6 +187,11 @@ wrangleData_RovbaseDead <- function(path_rovbase, data_dead_name,
         HarvestOutcome == "Påskutt, skade påvist" ~ "injured",
         TRUE ~ "uncoded"
       ),
+      
+      # Code sex
+      Sex = dplyr::case_when(Sex == "Hann" ~ "male",
+                             Sex == "Hunn" ~ "female",
+                             Sex == "Ukjent" | is.na(Sex) ~ NA),
       
       # Format age and weight as numeric
       Age_assumed = as.numeric(Age_assumed),
