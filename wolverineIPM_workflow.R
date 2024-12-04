@@ -19,8 +19,9 @@ sourceDir <- function(path, trace = TRUE, ...) {
 sourceDir('R')
 
 
-# DATA PREPARATION & REFORMATTING #
-#---------------------------------#
+#-------------------------------#
+# DATA WRANGLING & REFORMATTING #
+#-------------------------------#
 
 ## Set paths, directories and filenames
 path_rovbase <- paste0(data.dir, "/Data/DataRovbase/")
@@ -56,10 +57,17 @@ data_dead <- wrangleData_RovbaseDead(path_rovbase = path_rovbase,
 data_carcass <- wrangleData_Carcass(path_carcass = path_carcass, 
                                     data_carcass_name = data_carcass_name)
 
-
 ## Filter & clean reproduction/litter data
 data_repro <- wrangleData_Reproductions(path_repro = path_repro, 
                                         data_repro_name = data_repro_name,
                                         dir_shapefile = dir_shapefile)
   
+
+#------------------------------#
+# DATA FORMATTING & PREPARAION #
+#------------------------------#
+
+## Combine DNA and dead recovery data
+data_CRR <- combineData_Rovbase(data_CR = data_CR,
+                                data_dead = data_dead) 
 
