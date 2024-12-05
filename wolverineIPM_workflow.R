@@ -71,3 +71,6 @@ data_repro <- wrangleData_Reproductions(path_repro = path_repro,
 data_CRR <- combineData_Rovbase(data_CR = data_CR,
                                 data_dead = data_dead) 
 
+## Collate individual-level information from CRR data
+data_Ind <- extractIndInfo_CRR(data_CRR = data_CRR)
+
