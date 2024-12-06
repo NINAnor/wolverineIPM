@@ -219,6 +219,13 @@ wrangleData_RovbaseDead <- function(path_rovbase, data_dead_name,
     message(paste0("There are uncoded dharvest outcomes (original field `Utfall`): ", paste(uncodedHO, collapse = ", ")))
   }
   
+  ## Fix any case mistakes in IDs
+  data_dead <- data_dead %>%
+    dplyr::mutate(IndID = stringi::stri_replace_all_regex(IndID,
+                                                 pattern = c("ind", "INd"),
+                                                 replacement = c("Ind"),
+                                                 vectorize = FALSE))
+  
   ## Return data
   return(data_dead)
 }

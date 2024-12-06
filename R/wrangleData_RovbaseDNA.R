@@ -146,6 +146,14 @@ wrangleData_RovbaseDNA <- function(path_rovbase, data_CR_name,
                                          Sex == "Hunn" ~ "female",
                                          Sex == "Ukjent" | is.na(Sex) ~ NA))
   
+  
+  ## Fix any case mistakes in IDs
+  data_CR <- data_CR %>%
+    dplyr::mutate(IndID = stringi::stri_replace_all_regex(IndID,
+                                                          pattern = c("ind", "INd"),
+                                                          replacement = c("Ind"),
+                                                          vectorize = FALSE))
+  
   ## Return data
   return(data_CR)
 }
