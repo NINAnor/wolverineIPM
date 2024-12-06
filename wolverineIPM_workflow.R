@@ -79,3 +79,15 @@ data_CRR <- combineData_Rovbase(data_CR = data_CR,
 ## Collate individual-level information from CRR data
 data_Ind <- extractIndInfo_CRR(data_CRR = data_CRR)
 
+## Write traditional capture histories from CRR data
+# TBA 
+
+## Assemble simple kinship data (from pedigree and individual data)
+data_kin <- assembleData_kin(data_Ind = data_Ind,
+                             data_pedigree = data_pedigree,
+                             use_biologicalYear = TRUE,
+                             use_firstSample = TRUE)
+
+
+
+

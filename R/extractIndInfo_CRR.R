@@ -46,7 +46,8 @@ extractIndInfo_CRR <- function(data_CRR = data_CRR){
     LastSampleYear_biological = max(SampleYear_biological),
     Observations_n = dplyr::n_distinct(RovbaseID_Analysis),
     Observations_nbioyears = dplyr::n_distinct(SampleYear_biological),
-    .groups = "keep")
+    .groups = "keep") %>%
+    dplyr::ungroup()
   
   # Check for conflicting individual information
   Sex_conflicts <- data_Ind %>%
