@@ -13,8 +13,9 @@
 #' 
 extractIndInfo_CRR <- function(data_CRR = data_CRR){
   
-  # Add sampling and birth years/months
   data_CRR <- data_CRR %>%
+    
+    # Add sampling and birth years/months
     dplyr::mutate(SampleYear = lubridate::year(SampleDate),
                   SampleMonth = lubridate::month(SampleDate),
                   SampleYear_biological = ifelse(
@@ -24,12 +25,19 @@ extractIndInfo_CRR <- function(data_CRR = data_CRR){
                   BirthYear_est = dplyr::case_when(
                     !is.na(Age_confirmed) ~ lubridate::year(SampleDate) - Age_confirmed, # Use confirmed age if available
                     Age_assumed == 0 ~ 0, # If confirmed age is not available, but it was assumed a YOY, set 0
-                    TRUE ~ NA)) # Otherwise NA
+                    TRUE ~ NA)) %>% # Otherwise NA
+    
+    # Extract simple individual ID
+    dplyr::mutate(id = dplyr::case_when(!is.na(IndID) ~ as.integer(stringr::str_split_fixed(IndID, pattern = "Ind", n = 2)[,2]),
+                                        !is.na(IndID_dead) ~ as.integer(stringr::str_split_fixed(IndID_dead, pattern = "Ind", n = 2)[,2]),
+                                        #!is.na(ID_carcass) ~ ID_carcass,
+                                        TRUE ~ NA),
+                  IndID = ifelse(!is.na(IndID), IndID, IndID_dead))
   
   # Summarise individual-level information
   data_Ind <- data_CRR %>%
-    dplyr::filter(!is.na(IndID)) %>%
-    dplyr::group_by(IndID) %>%
+    dplyr::filter(!is.na(id)) %>%
+    dplyr::group_by(id, IndID) %>%
     
     dplyr::summarise(Sex = dplyr::case_when(
       all(is.na(Sex)) ~ NA,
