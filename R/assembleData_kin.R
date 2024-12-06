@@ -16,10 +16,6 @@
 #' 
 assembleData_kin <- function(data_Ind, data_pedigree, use_biologicalYear, use_firstSample){
   
-  # Add integer ID to individual data
-  data_Ind <- data_Ind %>%
-    dplyr::mutate(id = as.integer(stringr::str_split_fixed(IndID, pattern = "Ind", n = 2)[,2]))
-  
   # Select relevant columns for individual data frame & duplicate columns for matching as parents
   data_Ind_sub <- data_Ind %>%
     dplyr::ungroup() %>%
@@ -45,6 +41,15 @@ assembleData_kin <- function(data_Ind, data_pedigree, use_biologicalYear, use_fi
                      by = dplyr::join_by(mom == id)) %>%
     dplyr::left_join(data_Ind_sub[, c("id", "dad_SampleYear", "dad_BirthYear")], 
                      by = dplyr::join_by(dad == id))
+  
+  # Check for and notify about kin pairs without sampling years
+  data_kin_noYear <- data_kin %>%
+    dplyr::filter(is.na(SampleYear))
+  
+  if(nrow(data_kin_noYear) > 0){
+    message(paste0("The following ", nrow(data_kin_noYear), " individuals from the pedigree data do not seem to have a match in Rovbase (and are hence missing information on sampling year):"))
+    print(data_kin_noYear$id)
+  }
   
   # Return data
   return(data_kin)
