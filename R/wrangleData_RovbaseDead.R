@@ -28,7 +28,7 @@ wrangleData_RovbaseDead <- function(path_rovbase, data_dead_name,
                                     path_blacklist, blacklist_dead_name,
                                     dir_shapefile){
   
-  ## Read in DNA CR data and select/rename relevant columns
+  ## Read in dead data and select/rename relevant columns
   data_dead <- suppressWarnings(readxl::read_xlsx(paste0(path_rovbase, data_dead_name))) %>%
     
     # Select relevant columns
