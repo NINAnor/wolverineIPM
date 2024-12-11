@@ -71,20 +71,20 @@ wrangleData_RovbaseDead <- function(path_rovbase, data_dead_name,
   
   ## Remove blacklisted entries
   blacklist_count <- length(which(data_dead$RovbaseID_Analysis %in% blacklist_dead$Rovbase_ID))
-  message(paste0("Removed ", blacklist_count, " entries from dead recover data that have Rovbase IDs on the blacklist."))
+  message(paste0("Flagged ", blacklist_count, " entries in dead recovery data that have Rovbase IDs on the blacklist."))
   
   data_dead <- data_dead %>%
-    dplyr::filter(!(RovbaseID_Analysis %in% blacklist_dead$Rovbase_ID))
+    dplyr::mutate(blacklisted_dead = ifelse(RovbaseID_Analysis %in% blacklist_dead$Rovbase_ID, 1, 0))
   
   ## Remove entries without coordinates
   coordNA_count <- length(which(is.na(data_dead$Coord_N)))
   
   if(coordNA_count > 0){
-    message(paste0("Removed ", coordNA_count, " entries from dead recovery data that are lacking coordinate information."))
-    
-    data_dead <- data_dead %>%
-      dplyr::filter(!is.na(Coord_N))
+    message(paste0("Flagged ", coordNA_count, " entries in dead recovery data that are lacking coordinate information."))
   }
+  
+  data_dead <- data_dead %>%
+    dplyr::mutate(noCoordinates_dead = ifelse(!is.na(Coord_N), 1, 0))
   
   ## Check for (and remove) any "not-wolverines"
   otherSpp_count <- length(which(data_dead$Species != "Jerv"))
@@ -111,7 +111,7 @@ wrangleData_RovbaseDead <- function(path_rovbase, data_dead_name,
   
   # Add geometry to raw data and match to regions shapefile
   sf_data_dead <- data_dead %>%
-    sf::st_as_sf(coords = c("Coord_E", "Coord_N"), crs = 32633) %>%
+    sf::st_as_sf(coords = c("Coord_E", "Coord_N"), crs = 32633, na.fail = FALSE) %>%
     sf::st_join(region_polygon, join = sf::st_within)
   
   data_dead$Region <- sf_data_dead$Region

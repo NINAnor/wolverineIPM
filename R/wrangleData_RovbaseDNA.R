@@ -67,19 +67,19 @@ wrangleData_RovbaseDNA <- function(path_rovbase, data_CR_name,
   ## Read in corresponding blacklist
   blacklist_CR <- readxl::read_xlsx(paste0(path_blacklist, blacklist_CR_name))
   
-  ## Remove blacklisted entries
+  ## Flag blacklisted entries
   blacklist_count <- length(which(data_CR$DNAID_Analysis %in% blacklist_CR$DNAID_RB))
-  message(paste0("Removed ", blacklist_count, " entries from CR data that have DNA IDs on the blacklist."))
+  message(paste0("Flagged ", blacklist_count, " entries in CR data that have DNA IDs on the blacklist. Blacklisted entries are either killed cubs that should not be used for population analyses or entries with wrong coordinates."))
   
   data_CR <- data_CR %>%
-    dplyr::filter(!(DNAID_Analysis %in% blacklist_CR$DNAID_RB))
+    dplyr::mutate(blacklisted_CR = ifelse(DNAID_Analysis %in% blacklist_CR$DNAID_RB, 1, 0))
   
-  ## Remove entries without coordinates
+  ## Flag entries without coordinates
   coordNA_count <- length(which(is.na(data_CR$Coord_N)))
-  message(paste0("Removed ", coordNA_count, " entries from CR data that are lacking coordinate information."))
+  message(paste0("Flagged ", coordNA_count, " entries in CR data that are lacking coordinate information."))
   
   data_CR <- data_CR %>%
-    dplyr::filter(!is.na(Coord_N))
+    dplyr::mutate(noCoordinates_CR = ifelse(!is.na(Coord_N), 1, 0))
   
   ## Check for (and remove) any "not-wolverines"
   otherSpp_count <- length(which(data_CR$Species != "Jerv"))
@@ -106,7 +106,7 @@ wrangleData_RovbaseDNA <- function(path_rovbase, data_CR_name,
 
   # Add geometry to raw data and match to regions shapefile
   sf_data_CR <- data_CR %>%
-    sf::st_as_sf(coords = c("Coord_E", "Coord_N"), crs = 32633) %>%
+    sf::st_as_sf(coords = c("Coord_E", "Coord_N"), crs = 32633, na.fail = FALSE) %>%
     sf::st_join(region_polygon, join = sf::st_within)
   
   data_CR$Region <- sf_data_CR$Region
