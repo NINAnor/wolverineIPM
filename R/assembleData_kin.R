@@ -24,22 +24,25 @@ assembleData_kin <- function(data_Ind, data_pedigree, use_biologicalYear, use_fi
       !use_biologicalYear & use_firstSample ~ FirstSampleYear,
       use_biologicalYear & !use_firstSample ~ LastSampleYear_biological,
       !use_biologicalYear & !use_firstSample ~ LastSampleYear),
-      BirthYear = BirthYear_est_mean) %>%
-    dplyr::select(id, SampleYear, BirthYear, Sex) %>%
+      BirthYear = BirthYear_est_mean,
+      DeathYear = ifelse(use_biologicalYear, DeathYear_biological, DeathYear)) %>%
+    dplyr::select(id, SampleYear, BirthYear, DeathYear, Sex) %>%
     dplyr::mutate(mom_SampleYear = SampleYear,
                   dad_SampleYear = SampleYear,
                   mom_BirthYear = BirthYear,
-                  dad_BirthYear = BirthYear)
+                  dad_BirthYear = BirthYear,
+                  mom_DeathYear = DeathYear,
+                  dad_DeathYear = DeathYear)
   
   # Match individual data to pedigree data
   data_kin <- data_pedigree %>%
     dplyr::rename(mom = dam, 
                   dad = sire) %>%
-    dplyr::left_join(data_Ind_sub[, c("id", "SampleYear", "BirthYear", "Sex")], 
+    dplyr::left_join(data_Ind_sub[, c("id", "SampleYear", "BirthYear", "DeathYear", "Sex")], 
                      by = "id") %>%
-    dplyr::left_join(data_Ind_sub[, c("id", "mom_SampleYear", "mom_BirthYear")], 
+    dplyr::left_join(data_Ind_sub[, c("id", "mom_SampleYear", "mom_BirthYear", "mom_DeathYear")], 
                      by = dplyr::join_by(mom == id)) %>%
-    dplyr::left_join(data_Ind_sub[, c("id", "dad_SampleYear", "dad_BirthYear")], 
+    dplyr::left_join(data_Ind_sub[, c("id", "dad_SampleYear", "dad_BirthYear", "dad_DeathYear")], 
                      by = dplyr::join_by(dad == id))
   
   # Check for and notify about kin pairs without sampling years

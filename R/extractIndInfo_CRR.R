@@ -24,8 +24,12 @@ extractIndInfo_CRR <- function(data_CRR = data_CRR){
                     lubridate::year(SampleDate)),
                   BirthYear_est = dplyr::case_when(
                     !is.na(Age_confirmed) ~ lubridate::year(SampleDate) - Age_confirmed, # Use confirmed age if available
-                    Age_assumed == 0 ~ 0, # If confirmed age is not available, but it was assumed a YOY, set 0
+                    Age_assumed == 0 ~ lubridate::year(SampleDate), # If confirmed age is not available, but it was assumed a YOY, set 0
                     TRUE ~ NA)) %>% # Otherwise NA
+    
+    # Add death years
+    dplyr::mutate(DeathYear = ifelse(DeadAlive == "dead", SampleYear, NA),
+                  DeathYear_biological = ifelse(DeadAlive == "dead", SampleYear_biological, NA)) %>%
     
     # Extract simple individual ID
     dplyr::mutate(id = dplyr::case_when(!is.na(IndID) ~ as.integer(stringr::str_split_fixed(IndID, pattern = "Ind", n = 2)[,2]),
@@ -52,6 +56,9 @@ extractIndInfo_CRR <- function(data_CRR = data_CRR){
     LastSampleYear = max(SampleYear),
     FirstSampleYear_biological = min(SampleYear_biological),
     LastSampleYear_biological = max(SampleYear_biological),
+    DeathYear = ifelse(all(is.na(DeathYear)), NA, max(DeathYear, na.rm = TRUE)), # NOTE: I am using the max here but technically, every individual should only have one death year...
+    DeathYear_biological = ifelse(all(is.na(DeathYear_biological)), NA, max(DeathYear_biological)),
+    DeathYear_distinct = dplyr::n_distinct(DeathYear, na.rm = TRUE),
     Observations_n = dplyr::n_distinct(RovbaseID_Analysis),
     Observations_nbioyears = dplyr::n_distinct(SampleYear_biological),
     .groups = "keep") %>%
@@ -80,6 +87,18 @@ extractIndInfo_CRR <- function(data_CRR = data_CRR){
     print(cbind(BirthYear_conflicts$IndID))
   }else{
     message("There are no individuals with conflicting birth year information.")
+  }
+  
+  DeathYear_conflicts <- data_Ind %>%
+    dplyr::filter(DeathYear_distinct > 1)
+  
+  DeathYear_conflicts_n <- nrow(DeathYear_conflicts)
+  
+  if(DeathYear_conflicts_n > 0){
+    message(paste0("The following ", DeathYear_conflicts_n, " individuals have conflicting death year information:"))
+    print(cbind(DeathYear_conflicts$IndID))
+  }else{
+    message("There are no individuals with conflicting death year information.")
   }
   
   # Return individual-level data
