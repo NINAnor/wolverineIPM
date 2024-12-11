@@ -4,11 +4,6 @@
 #' capture-recapture data. Output of wrangleData_RovbasDNA. 
 #' @param data_dead a tibble containing formatted and filtered dead recovery 
 #' data. Output of wrangleData_RovbaseDead(). 
-#' @param data_carcass a tibble containing formatted and filtered carcass data.
-#' Output of wrangleData_carcass().
-#' @param mergeCarcassData logical. Whether (= TRUE) or not (= FALSE, default) to
-#' merge information from carcass data by ID. As of now, I have to clarify whether
-#' the ID's are compatible. 
 #'
 #' @return a tibble containing matched and unique DNA (re)capture and dead 
 #' recovery events. 
@@ -16,7 +11,7 @@
 #'
 #' @examples
 
-combineData_Rovbase <- function(data_CR, data_dead, data_carcass, mergeCarcassData = FALSE){
+combineData_Rovbase <- function(data_CR, data_dead, data_carcass){
   
   # Select columns from capture-recapture DNA data for joining
   data_CR_forJoin <- data_CR %>%
@@ -25,7 +20,8 @@ combineData_Rovbase <- function(data_CR, data_dead, data_carcass, mergeCarcassDa
                   SampleType,
                   Region,
                   IndID, Sex,
-                  DeadAlive, DeadRecovery) %>%
+                  DeadAlive, DeadRecovery,
+                  blacklisted_CR) %>%
     dplyr::mutate(inData_CR = TRUE)
   
   # Select columns from dead data for joining
@@ -36,57 +32,46 @@ combineData_Rovbase <- function(data_CR, data_dead, data_carcass, mergeCarcassDa
                   HarvestMethod, HarvestOutcome,
                   Region, 
                   IndID, Sex, 
-                  Age_assumed, Age_confirmed) %>%
+                  Age_assumed, Age_confirmed,
+                  blacklisted_dead) %>%
     dplyr::rename(IndID_dead = IndID, 
                   Sex_dead = Sex,
                   Region_dead = Region) %>%
     dplyr::mutate(inData_Dead = TRUE)
   
-  if(mergeCarcassData){
-    
-    # Select columns and rows from carcass data for joining
-    Region3_Municipalities <- stringr::str_split_fixed(subset(data_CR, Region == 3)$MunicipalityNo, pattern = "-", n = 2)[,2]
-    Region5_Municipalities <- stringr::str_split_fixed(subset(data_CR, Region == 5)$MunicipalityNo, pattern = "-", n = 2)[,2]
-    
-    data_carcass_forJoin <- data_carcass %>%
-      dplyr::filter(!is.na(RovbaseID_Analysis) & !(RovbaseID_Analysis %in% data_dead$RovbaseID_Analysis)) %>%
-      dplyr::mutate(Region = dplyr::case_when(County %in% c("Rogaland", "Vestland") ~ 1,
-                                              County %in% c("Agder", "Buskerud", "Telemark", "Vestfold", "Vestfold og Telemark", "Viken") ~ 2,
-                                              County == "Oppland" ~ 3,
-                                              County == "Hedmark" ~ 5,
-                                              County == "Innlandet" & MunicipalityNo %in% Region3_Municipalities ~ 3,
-                                              County == "Innlandet" & MunicipalityNo %in% Region5_Municipalities ~ 5,
-                                              County %in% c("Møre og Romsdal", "Trøndelag", "Nord-Trøndelag", "Sør-Trøndelag") ~ 6,
-                                              County == "Nordland" ~ 7,
-                                              County == "Finnmark" ~ 8,
-                                              TRUE ~ NA),
-                    inData_Carcass = TRUE) %>%
-      dplyr::select(RovbaseID_Analysis, 
-                    DeathDate,
-                    DeathCause,
-                    Region,
-                    ID, Sex,
-                    Age_confirmed) %>%
-      dplyr::rename(ID_carcass = ID,
-                    Sex_dead = Sex,
-                    Region_dead = Region)
-    
-    # Combine dead and carcass data
-    data_dead_forJoin <- data_dead_forJoin %>%
-      dplyr::bind_rows(data_carcass_forJoin)
-  }
-  
   # Join data by RovbaseID & drop all entries that are not linked to an individual
-  if(mergeCarcassData){
-    data_CRR_full <- data_CR_forJoin %>%
-      dplyr::full_join(data_dead_forJoin, by = "RovbaseID_Analysis") %>%
-      dplyr::filter(!is.na(IndID) | !is.na(IndID_dead) | !is.na(ID_carcass))
-  }else{
-    data_CRR_full <- data_CR_forJoin %>%
-      dplyr::full_join(data_dead_forJoin, by = "RovbaseID_Analysis") %>%
-      dplyr::filter(!is.na(IndID) | !is.na(IndID_dead))
-  }
+  data_CRR_full <- data_CR_forJoin %>%
+    dplyr::full_join(data_dead_forJoin, by = "RovbaseID_Analysis") %>%
+    dplyr::filter(!is.na(IndID) | !is.na(IndID_dead))
   
+  # Consolidate overlapping information from both datasets
+  data_CRR_full <- data_CRR_full %>%
+    dplyr::mutate(
+      # Use death date as sampling date if no sampling date specified
+      SampleDate = dplyr::case_when(!is.na(SampleDate) ~ SampleDate,
+                                              !is.na(DeathDate) ~ DeathDate,
+                                              TRUE ~ NA),
+      # Use dead ID if ID is not specified
+      IndID = dplyr::case_when(!is.na(IndID) ~ IndID,
+                               !is.na(IndID_dead) ~ IndID_dead,
+                               TRUE ~ NA),
+      # Use dead region if region is not specified
+      Region = dplyr::case_when(!is.na(Region) ~ Region,
+                                !is.na(Region_dead) ~ Region_dead,
+                                TRUE ~ NA),
+      # Use dead Sex if sex is not specified
+      Sex = dplyr::case_when(!is.na(Sex) ~ Sex,
+                             !is.na(Sex_dead) ~ Sex_dead,
+                             TRUE ~ NA),
+      # Set state to "dead" when origin is dead data
+      DeadAlive = ifelse(inData_Dead, "dead", DeadAlive),
+      # Set dead recovery to "yes" when origin is dead data
+      DeadRecovery = ifelse(inData_Dead, "yes", DeadRecovery),
+      # Update data origin flags
+      inData_CR = ifelse(inData_CR, TRUE, FALSE),
+      inData_Dead = ifelse(inData_Dead, TRUE, FALSE)
+    )
+    
   # Check for and notify about conflicts between the two datasets
   test <- subset(data_CRR_full, inData_CR & inData_Dead)
   

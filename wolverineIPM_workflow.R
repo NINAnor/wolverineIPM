@@ -74,12 +74,7 @@ data_pedigree <- readxl::read_xlsx(paste0(path_pedigree, data_pedigree_name))
 
 ## Combine DNA and dead recovery data
 data_CRR <- combineData_Rovbase(data_CR = data_CR,
-                                data_dead = data_dead,
-                                data_carcass = data_carcass,
-                                mergeCarcassData = FALSE) 
-
-# TODO: Check with Jenny/Henrik whether the IDs from carcass data can be matched
-# to individual IDs in other datasets or not. 
+                                data_dead = data_dead) 
 
 ## Collate individual-level information from CRR data
 data_Ind <- extractIndInfo_CRR(data_CRR = data_CRR)

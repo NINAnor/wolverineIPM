@@ -14,7 +14,7 @@
 extractIndInfo_CRR <- function(data_CRR = data_CRR){
   
   data_CRR <- data_CRR %>%
-    
+                    
     # Add sampling and birth years/months
     dplyr::mutate(SampleYear = lubridate::year(SampleDate),
                   SampleMonth = lubridate::month(SampleDate),
