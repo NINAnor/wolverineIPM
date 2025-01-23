@@ -90,32 +90,17 @@ data_kin <- assembleData_kin(data_Ind = data_Ind,
 
 
 ## Assemble simple close-kin mark-recapture data
-assembleData_CKMR(KinPairType = "POP",
-                  nYears_poolSamples = "all",
-                  minYear = min(data_kin$SampleYear, na.rm = TRUE),
-                  maxYear = max(data_kin$SampleYear, na.rm = TRUE))
-
-## Create main pairwise comparison matrix (contains all comparisons)
-
-# Create dataframe of pairwise comparisons with just individual offspring IDs
-#pairwise.df <- data.frame(t(combn(data_kin$id, m = 2))) # Generates all the possible combinations. m = 2 means pair comparisons. t(x) gives the dimensions of the matrix (dataframe).
-#colnames(pairwise.df) <- c("Ind_1", "id") #Rename columns so they can easily be joined
-
-# Create dataframe that will be used to extract the birth years for the younger individual from each pairwise comparison using joins.
-#Ind1_birthyears <- data_kin %>%
-#  select(id, BirthYear, SampleYear, mom, dad, Sex) %>% 
-#  dplyr::rename("Ind_1" = id, "Ind_1_birth" = BirthYear, "Ind_1_sampling" = SampleYear, "Ind_1_mom" = mom, "Ind_1_dad" = dad, "Ind_1_sex" = Sex) 
-
-# Combine the two dataframes above to extract birth year and parents for each individual in the pairwise comparison matrix. 
-#pairwise.df_all <- pairwise.df %>%
-#  left_join(Ind1_birthyears, by = "Ind_1") %>%
-#  left_join(data_kin, by = "id") %>%
-#  dplyr::rename("Ind_2" = id, "Ind_2_birth" = BirthYear, "Ind_2_sampling" = SampleYear,
-#                "Ind_2_mom" = mom, "Ind_2_dad" = dad, "Ind_2_sex" = Sex) %>% 
-#  select(Ind_1, Ind_1_birth, Ind_1_sampling, Ind_1_sex, Ind_2, Ind_2_birth, Ind_2_sampling, Ind_2_sex, Ind_1_mom, Ind_1_dad, Ind_2_mom, Ind_2_dad) 
+data_CKMR <- assembleData_CKMR(KinPairType = "POP",
+                               matchYear = "Sampling",
+                               nYears_poolSamples = "all",
+                               minYear = min(data_kin$SampleYear, na.rm = TRUE),
+                               maxYear = max(data_kin$SampleYear, na.rm = TRUE))
 
 
-# Remove individuals (both offspring and parents) that are not in Rovbase / have no sampling year
+## Set up list for returning data
+data_CKMR <- list()
+
+## Remove individuals (both offspring and parents) that are not in Rovbase / have no sampling year
 data_kin <- data_kin %>%
   dplyr::mutate(id = ifelse(!is.na(SampleYear), id, NA),
                 mom = ifelse(!is.na(mom_SampleYear), mom, NA),
@@ -205,6 +190,113 @@ data_pairs <- data_pairs %>%
     TRUE ~ FALSE
   )) %>%
   dplyr::filter(!exclude)
+
+## Determine which year column to use for matching data
+data_pairs <- data_pairs %>%
+  dplyr::mutate(matchYear = dplyr::case_when(matchYear == "Sampling" ~ Ind_2_SampleYear - min(Ind_2_SampleYear) + 1,
+                                             matchYear == "Birth_Offspring" ~ Ind_2_BirthYear - min(Ind_2_BirthYear) + 1,
+                                             matchYear == "None" ~ 0))
+
+
+if("POP" %in% KinPairType){
+  
+  ## Parent-offspring pairs (POPs, both sexes)
+  
+  # Tally positive POP comparisons
+  POP_positives <- data_pairs %>%
+    filter(Ind_1 == Ind_2_mom | Ind_1 == Ind_2_dad) %>% 
+    select(matchYear) %>% 
+    plyr::count() 
+  
+  sum(POP_positives$freq)
+  
+  # Tally negative comparisons
+  POP_negatives <- data_pairs %>%
+    filter(Ind_1 != Ind_2_mom & Ind_1 != Ind_2_dad) %>%
+    select(matchYear) %>%
+    plyr::count()
+  
+  sum(POP_negatives$freq)
+  
+  # Collate positive and negative matches
+  POP_comps <- POP_positives %>% 
+    dplyr::rename(yes = freq) %>% 
+    full_join(POP_negatives, by = c("matchYear")) %>% 
+    dplyr::rename(no = freq) %>% 
+    mutate(yes = replace_na(yes, 0), no = replace_na(no, 0)) %>%
+    mutate(all = yes + no) %>%
+    dplyr::relocate(yes, .before = no) %>%
+    arrange(by = matchYear) # Chronological rearrangement 
+  
+  sum(POP_comps$yes)
+  
+  ## Mother-offspring pairs (MOPs) & Father-offpspring pairs (FOPs)
+  
+  # Tally positive POP comparisons
+  POP_mom_positives <- data_pairs %>%
+    filter(Ind_1 == Ind_2_mom) %>% 
+    select(matchYear) %>% 
+    plyr::count() 
+  
+  sum(POP_mom_positives$freq)
+  
+  POP_dad_positives <- data_pairs %>%
+    filter(Ind_1 == Ind_2_dad)  %>%
+    select(matchYear) %>%
+    plyr::count()
+  
+  sum(POP_dad_positives$freq)
+  
+  # Tally negative POP comparisons
+  POP_mom_negatives <- data_pairs %>%
+    filter(Ind_1 != Ind_2_mom) %>%
+    filter(Ind_1_Sex == "female") %>% # One condition for an individual to be a "potential mothers" is to be female. 
+    select(matchYear) %>% 
+    plyr::count()
+  
+  POP_dad_negatives <- data_pairs %>%
+    filter(Ind_1 != Ind_2_dad) %>% 
+    filter(Ind_1_Sex == "male") %>%
+    select(matchYear) %>% 
+    plyr::count()
+  
+  # Collate positive and negative matches
+  POP_mom_comps <- POP_mom_positives %>% 
+    dplyr::rename(yes = freq) %>% 
+    full_join(POP_mom_negatives, by = c("matchYear")) %>% 
+    dplyr::rename(no = freq) %>% 
+    mutate(yes = tidyr::replace_na(yes, 0), no = tidyr::replace_na(no, 0)) %>%
+    mutate(all = yes + no) %>%
+    arrange(by = matchYear)  
+  
+  POP_dad_comps <- POP_dad_positives %>% 
+    dplyr::rename(yes = freq) %>% 
+    full_join(POP_dad_negatives, by = c("matchYear")) %>% 
+    dplyr::rename(no = freq) %>% 
+    mutate(yes = tidyr::replace_na(yes, 0), no = tidyr::replace_na(no, 0)) %>% 
+    mutate(all = yes + no) %>%
+    arrange(by = matchYear) 
+  
+  # Write information
+  message("Data contains:")
+  message(paste0("- ", sum(POP_comps$yes), " parent-offspring pairs"))
+  message(paste0("- ", sum(POP_mom_comps$yes), " mother-offspring pairs"))
+  message(paste0("- ", sum(POP_dad_comps$yes), " father-offspring pairs"))
+  message("")
+  message(paste0("The total number of potential pairs is ", nrow(data_pairs), "."))
+  
+  ## Store data in output list
+  data_CKMR$POP_comps <- POP_comps
+  data_CKMR$POP_mom_comps <- POP_mom_comps
+  data_CKMR$POP_dad_comps <- POP_dad_comps
+}
+
+## Return data
+return(data_CKMR)
+
+
+
+
 
 
 
