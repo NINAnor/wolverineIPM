@@ -6,7 +6,7 @@ write_modelCod <- function(){
     # Summer: S[1,t] ~ mO + rE
     # Autumn: S[2,t] ~ mO + mH + rE
     # Winter: S[3,t] ~ mO + mH + mSNO
-    # Winter: S[4,t] ~ mO + mSNO
+    # Spring: S[4,t] ~ mO + mSNO
     
     # mO = natural mortality
     # mH = general harvest mortality (license & nuisance harvest)
